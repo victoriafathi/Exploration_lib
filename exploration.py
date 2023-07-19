@@ -22,10 +22,12 @@ RESET = '\033[0m'
 
 def clean_column_name(table):
     """
-    The function `clean_column_name` converts the column names of a table to lowercase, removes
-    punctuation characters, replaces underscores with spaces, and removes leading and trailing spaces.
+    The `clean_column_name` function takes a table as input and returns a copy of the table with cleaned
+    column names.
     
-    :param table: The parameter "table" is expected to be a pandas DataFrame object
+    :param table: The `table` parameter is expected to be a pandas DataFrame object
+    :return: The function `clean_column_name` returns a copy of the input table with modified column
+    names.
     """
     table_copy = table.copy()
     table_copy.columns = table_copy.columns.str.lower()
@@ -36,6 +38,15 @@ def clean_column_name(table):
 
  
 def clean_str_column(table):
+    """
+    The function `clean_str_column` takes a table as input and returns a copy of the table with string
+    columns cleaned by removing punctuation, converting to lowercase, and removing leading and trailing
+    spaces.
+    
+    :param table: The parameter "table" is a DataFrame object that represents a table of data. It
+    contains columns with string values that need to be cleaned
+    :return: a copy of the input table with the string columns cleaned.
+    """
     table_copy = table.copy()  # Create a copy of the DataFrame
 
     str_columns = table_copy.select_dtypes(include=['object']).columns
@@ -115,64 +126,101 @@ def find_features(table, regex):
     column names that match the regular expression in either the column names or the values of the
     table.
     
-    :param table: The "table" parameter is a pandas DataFrame that represents a table of data. It could
-    be any table with columns and rows
-    
+    :param table: The `table` parameter is a pandas DataFrame object that represents a table of data. It
+    could be a table of any size and can contain any type of data
     :param regex: The regex parameter is a regular expression pattern that you want to search for in the
-    table. It can be any valid regular expression pattern that you want to match against the column
-    names and values in the table
-    
-    :return: The function `find_features` returns a set of column names from the input `table` that
-    match the regular expression `regex`.
+    table. It can be any valid regular expression pattern
+    :return: The function `find_features` returns a set of column names that match the given regular
+    expression `regex`.
     """
-    r = re.compile(regex)
-    
-    #Search in name columns
+
+    r = re.compile(regex, flags=re.IGNORECASE)  # Add the flags parameter to ignore case
+
+    # Search in column names
     results_columns = set(table.columns[table.columns.str.contains(r)])
-    
-    #Search in values 
+
+    # Search in values
     str_columns = table.select_dtypes(include=['object']).columns
-    results_value = table[str_columns].apply(lambda x: x.str.contains(r, na=False) if isinstance(str, x) else x).any()
+    results_value = table[str_columns].apply(lambda x: x.astype(str).str.contains(r, na=False)).any()
     results_columns.update(results_value[results_value].index)
-    
-    #combine results
-    results_columns.update(results_value[results_value].index)
-    
+
     return results_columns
 
-if __name__ == '__main__':
-    data_test = pd.DataFrame({
-    'Column1': ['Value1', 'Value2', 3, 4, 'Value_1', 3, 'Value3', 4],
-    'Column:2': ['Value A', 'Val,ueB', 'ValueA', 'ValueC', 'ValueD', 'ValueB', 'ValueE', 'ValueE'],
-    'Column_3': [True, False, True, False, False, True, True, True],
-    'Column4-': [1.23, 4.56, 1.23, 7.89, 1.23, 7.89, 0.12, 4.56]
-    })
+####################################################################################################
+# TEST 
+####################################################################################################
 
-    print(f"{GREEN}INITIAL TEST SET{RESET}")
-    print(data_test)
+class CleaningTest(unittest.TestCase):
 
-    print(f"{GREEN} ############## TEST Cleaning functions ##############{RESET} ")
+    def setUp(self):
+        # Set up any data or configurations needed for your tests
+        self.data_test = pd.DataFrame({
+            'Column1': ['Value1', 'Value2', 3, 4, 'Value_1', 3, 'Value3', 4],
+            'Column:2': ['Value A', '  Val,ueB', 'ValueA  ', 'ValueC', 'ValueD', ' ValueB', 'ValueE', 'V alueE'],
+            'Column_3': [True, False, True, False, False, True, True, True],
+            'Column4-': [1.23, 4.56, 1.23, 7.89, 1.23, 7.89, 0.12, 4.56]
+        })
     
-    print(f"{GREEN}\nTEST clean_column_name{RESET}")
-    print(clean_column_name(data_test))
-    expected_clean_column_name = pd.DataFrame({
-    'column1': ['Value1', 'Value2', 3, 4, 'Value_1', 3, 'Value3', 4],
-    'column2': ['Value A', 'Val,ueB', 'ValueA', 'ValueC', 'ValueD', 'ValueB', 'ValueE', 'ValueE'],
-    'column 3': [True, False, True, False, False, True, True, True],
-    'column4': [1.23, 4.56, 1.23, 7.89, 1.23, 7.89, 0.12, 4.56]
-    })
-
-    pd.testing.assert_frame_equal(clean_column_name(data_test), expected_clean_column_name)
-
-    print(f"{GREEN}\nTEST clean_str_column{RESET}")
-    print(clean_str_column(data_test))
+    def test_clean_column_name(self):
+        expected_clean_column_name = pd.DataFrame({
+            'column1': ['Value1', 'Value2', 3, 4, 'Value_1', 3, 'Value3', 4],
+            'column2': ['Value A', '  Val,ueB', 'ValueA  ', 'ValueC', 'ValueD', ' ValueB', 'ValueE', 'V alueE'],
+            'column 3': [True, False, True, False, False, True, True, True],
+            'column4': [1.23, 4.56, 1.23, 7.89, 1.23, 7.89, 0.12, 4.56]
+            })
+        pd.testing.assert_frame_equal(clean_column_name(self.data_test), expected_clean_column_name)
     
+    def test_clean_str_column(self):
+        expected_clean_str_column = pd.DataFrame({
+            'Column1': ['value1', 'value2', 3, 4, 'value 1', 3, 'value3', 4],
+            'Column:2': ['value a', 'valueb', 'valuea', 'valuec', 'valued', 'valueb', 'valuee', 'v aluee'],
+            'Column_3': [True, False, True, False, False, True, True, True],
+            'Column4-': [1.23, 4.56, 1.23, 7.89, 1.23, 7.89, 0.12, 4.56]
+            })
+        pd.testing.assert_frame_equal(clean_str_column(self.data_test), expected_clean_str_column)
+    
+    def test_clean_all(self): 
+        expected_data_test_cleaned = pd.DataFrame({
+            'column1': ['value1', 'value2', 3, 4, 'value 1', 3, 'value3', 4],
+            'column2': ['value a', 'valueb', 'valuea', 'valuec', 'valued', 'valueb', 'valuee', 'v aluee'],
+            'column 3': [True, False, True, False, False, True, True, True],
+            'column4': [1.23, 4.56, 1.23, 7.89, 1.23, 7.89, 0.12, 4.56]
+            })
 
-    print(f"{GREEN} \n ############## TEST exploration functions ##############{RESET}")
-    print(f"{GREEN}\nTEST get_unique_value_col{RESET}")
+        # Testing no interference when using both functions     
+        pd.testing.assert_frame_equal(clean_column_name(clean_str_column(self.data_test)), expected_data_test_cleaned)
+        pd.testing.assert_frame_equal(clean_str_column(clean_column_name(self.data_test)), expected_data_test_cleaned)
 
-    print(get_unique_value_col(data_test, string=True))
 
-    print(f"{GREEN}\nTEST find_features{RESET}")
+class SearchTest(unittest.TestCase):
+    
+    def setUp(self):
+        self.data_test_cleaned = pd.DataFrame({
+        'column1': ['value1', 'value2', 3, 4, 'value 1', 3, 'value3', 4],
+        'column2': ['value a', 'valueb', 'valuea', 'valuec', 'valued', 'valueb', 'valuee', 'v aluee'],
+        'column 3': [True, False, True, False, False, True, True, True],
+        'column4': [1.23, 4.56, 1.23, 7.89, 1.23, 7.89, 0.12, 4.56]
+        })
 
-    #find_features(data_test)
+    def test_get_unique_value_col(self):
+        expected_get_unique_value_col = pd.DataFrame({ 
+        'unique_value': [['value1', 'value2', 3, 4, 'value 1', 'value3'], 
+                        ['value a', 'valueb', 'valuea', 'valuec', 'valued', 'valuee', 'v aluee'], 
+                        [True, False],
+                        [1.23, 4.56, 7.89, 0.12]]
+        }, index=["column1", "column2", "column 3", "column4"])
+        pd.testing.assert_frame_equal(get_unique_value_col(self.data_test_cleaned), expected_get_unique_value_col)
+
+    def test_find_features(self):
+
+        # Test case 1: Testing with regex='value'
+        expected_result_1 = {'column1', 'column2'}
+        self.assertEqual(find_features(self.data_test_cleaned, regex='value'), expected_result_1)
+
+        # Test case 2: Testing with regex='[0-9]'
+        expected_result_2 = {'column1', 'column2', 'column 3', 'column4'} #digits found in column names + values
+        self.assertEqual(find_features(self.data_test_cleaned, regex='[0-9]'), expected_result_2)
+
+if __name__ == '__main__':    
+    unittest.main(buffer=False)
+
